@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.ods
+*.xlsx
+custom_stocks.json

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APP Investidor</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.header h1 { font-size: 1.8rem; font-weight: 700; }
+.header p { font-size: .9rem; opacity: .85; margin-top: 4px; }
+.tab-container { display: flex; background: white; border-radius: 12px; padding: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; flex-wrap: wrap; gap: 2px; }
+.tab-btn { flex: 1; padding: 14px 16px; border: none; background: transparent; color: #666; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all .2s; min-width: 100px; font-size: .85rem; }
+.tab-btn:hover { background: #f0f0f0; }
+.tab-btn.active { background: #0f3460; color: white; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.card h2 { margin-bottom: 16px; color: #1a1a2e; font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.card h2 .subtitle { font-size: .8rem; color: #888; font-weight: 400; }
+.action-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.btn { padding: 10px 22px; border: 2px solid #ddd; background: white; color: #555; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all .2s; font-size: .85rem; }
+.btn:hover { border-color: #0f3460; background: #f8f9fa; }
+.btn.active, .btn-primary { border-color: #0f3460; background: #0f3460; color: white; }
+.btn-sm { padding: 7px 16px; font-size: .8rem; }
+.btn-refresh { border-color: #e67e22; background: #e67e22; color: white; }
+.btn-refresh:hover { background: #d35400; border-color: #d35400; }
+input, select { padding: 9px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: .85rem; background: white; color: #333; }
+input:focus, select:focus { outline: none; border-color: #0f3460; }
+.table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #eee; }
+table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+th { padding: 12px 10px; background: #f8f9fa; border-bottom: 2px solid #e0e0e0; font-weight: 700; color: #555; white-space: nowrap; text-align: center; font-size: .78rem; text-transform: uppercase; letter-spacing: .3px; }
+td { padding: 12px 10px; border-bottom: 1px solid #f0f0f0; text-align: center; white-space: nowrap; }
+tr:hover td { background: #fafafa; }
+td.left { text-align: left; }
+.ticker-cell { font-weight: 700; text-align: left; color: #1a1a2e; }
+.ticker-name { font-size: .7rem; color: #999; font-weight: 400; }
+.pos { color: #27ae60; font-weight: 700; }
+.neg { color: #e74c3c; font-weight: 700; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+.badge-boa { background: #d5f5e3; color: #1e8449; }
+.badge-ruim { background: #fadbd8; color: #c0392b; }
+.badge-jcp { background: #d6eaf8; color: #1a5276; }
+.badge-div { background: #e8e8e8; color: #555; }
+.badge-ok { background: #d5f5e3; color: #1e8449; }
+.badge-err { background: #fadbd8; color: #c0392b; }
+.loading { text-align: center; padding: 60px 20px; color: #999; }
+.loading .spinner { display: inline-block; width: 40px; height: 40px; border: 4px solid #eee; border-top-color: #0f3460; border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.summary-bar { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; }
+.summary-label { font-size: .75rem; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.summary-value { font-size: 1.3rem; font-weight: 700; color: #1a1a2e; margin-top: 2px; }
+.summary-value.pos { color: #27ae60; }
+.summary-value.neg { color: #e74c3c; }
+.chart-section { margin-top: 20px; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.chart-title { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+.chart-period-buttons { display: flex; gap: 6px; }
+.chart-period-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: .75rem; background: white; color: #666; font-weight: 500; transition: all .2s; }
+.chart-period-btn:hover { border-color: #0f3460; }
+.chart-period-btn.active { background: #0f3460; color: white; border-color: #0f3460; }
+#stock-chart { width: 100%; height: 420px; }
+.chart-info { display: flex; gap: 28px; margin-top: 16px; flex-wrap: wrap; padding: 12px 16px; background: #f8f9fa; border-radius: 8px; }
+.chart-info-label { font-size: .72rem; color: #999; text-transform: uppercase; }
+.chart-info-value { font-size: 1.1rem; font-weight: 700; color: #333; }
+.chart-info-value.pos { color: #27ae60; }
+.chart-info-value.neg { color: #e74c3c; }
+.profile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.profile-card { padding: 20px; border: 2px solid #e0e0e0; border-radius: 12px; text-align: center; cursor: pointer; transition: all .2s; background: white; }
+.profile-card:hover { border-color: #0f3460; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.profile-card.active { border-color: #0f3460; background: #f0f4ff; }
+.profile-card .emoji { font-size: 2rem; margin-bottom: 8px; }
+.profile-card .name { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+.profile-card .desc { font-size: .78rem; color: #888; margin-top: 4px; }
+.refresh-info { font-size: .78rem; color: #999; margin-left: auto; }
+#dividendTypeFilter { min-width: 140px; }
+@media (max-width: 900px) { .summary-bar { gap: 16px; } .profile-grid { grid-template-columns: 1fr; } .tab-btn { min-width: 60px; font-size: .78rem; padding: 10px 8px; } }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: white; border-radius: 12px; padding: 28px; width: 90%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.modal-box h3 { margin-bottom: 20px; color: #1a1a2e; font-size: 1.1rem; }
+.modal-box label { display: block; font-size: .82rem; color: #555; font-weight: 600; margin: 12px 0 4px; }
+.modal-box input { width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: .9rem; }
+.modal-box input:focus { border-color: #0f3460; outline: none; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.modal-actions .btn { min-width: 100px; }
+
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>APP Investidor</h1>
+    <p>Suite completa de acompanhamento de investimentos &mdash; Minhas Ações, Gráficos, Dividendos e Recomendações</p>
+  </div>
+
+  <div class="tab-container">
+    <button class="tab-btn active" data-tab="portfolio">Minhas Ações</button>
+    <button class="tab-btn" data-tab="charts">Gráficos</button>
+    <button class="tab-btn" data-tab="dividends">Dividendos</button>
+    <button class="tab-btn" data-tab="recommendations">Recomendacoes</button>
+  </div>
+
+  <div id="tab-portfolio" class="tab-content active">
+    <div class="card">
+      <h2>Minhas Ações <span class="subtitle">Carteira de investimentos</span></h2>
+      <div id="portfolioSummary" class="summary-bar"></div>
+      <div class="action-row">
+        <button class="btn btn-primary btn-sm" onclick="reloadODS()">Atualizar</button>
+        <button class="btn btn-sm" onclick="showAddModal()">+ Adicionar Ação</button>
+        <button class="btn btn-sm" onclick="showSellModal()">- Alterar Ação</button>
+        <span id="portfolioRefresh" class="refresh-info"></span>
+      </div>
+      <div id="addModal" class="modal-overlay">
+        <div class="modal-box">
+          <h3>Adicionar Ação</h3>
+          <label for="addTicker">ATIVO</label>
+          <input id="addTicker" placeholder="Ex: PETR4" />
+          <label for="addQty">QTDE</label>
+          <input id="addQty" type="number" step="any" placeholder="Ex: 100" />
+          <label for="addPrice">VL Compra (R$)</label>
+          <input id="addPrice" type="number" step="any" placeholder="Ex: 35.50" />
+          <div class="modal-actions">
+            <button class="btn" onclick="hideAddModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitAddStock()">Adicionar</button>
+          </div>
+        </div>
+      </div>
+      <div id="sellModal" class="modal-overlay">
+        <div class="modal-box">
+          <h3>Alterar Ação</h3>
+          <label for="sellTicker">ATIVO</label>
+          <input id="sellTicker" list="sellTickerList" placeholder="Ex: PETR4" />
+          <datalist id="sellTickerList"></datalist>
+          <label for="sellQty">QTDE</label>
+          <input id="sellQty" type="number" step="any" placeholder="Ex: 50" />
+          <div class="modal-actions">
+            <button class="btn" onclick="hideSellModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="submitSellStock()">Alterar</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ativo</th>
+              <th>QTDE</th>
+              <th>VL Compra</th>
+              <th>Total Investido</th>
+              <th>Cotacao</th>
+              <th>Variacao %</th>
+              <th>Valor Atual</th>
+              <th>Resultado</th>
+              <th>Resultado %</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioBody">
+            <tr><td colspan="9" style="text-align:center;color:#999;padding:40px;">Carregando carteira...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-charts" class="tab-content">
+    <div class="card">
+      <h2>Gráficos <span class="subtitle">Histórico de cotações</span></h2>
+      <div class="action-row">
+        <select id="chartTickerSelect" style="min-width:120px;">
+          <option value="">Selecione um ativo...</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="loadChartData()">Carregar</button>
+        <span id="chartStatus"></span>
+      </div>
+      <div class="chart-section">
+        <div class="chart-header">
+          <div class="chart-title" id="chartTitle">Selecione um ativo para visualizar</div>
+          <div class="chart-period-buttons">
+            <button class="chart-period-btn" onclick="changeChartPeriod(7,this)">7 dias</button>
+            <button class="chart-period-btn active" onclick="changeChartPeriod(30,this)">30 dias</button>
+            <button class="chart-period-btn" onclick="changeChartPeriod(90,this)">90 dias</button>
+            <button class="chart-period-btn" onclick="changeChartPeriod(180,this)">6 meses</button>
+            <button class="chart-period-btn" onclick="changeChartPeriod(365,this)">1 ano</button>
+          </div>
+        </div>
+        <div id="stock-chart"></div>
+        <div class="chart-info" id="chartInfo">
+          <div class="chart-info-item"><div class="chart-info-label">Ultimo</div><div class="chart-info-value" id="chartPrice">--</div></div>
+          <div class="chart-info-item"><div class="chart-info-label">Abertura</div><div class="chart-info-value" id="chartOpen">--</div></div>
+          <div class="chart-info-item"><div class="chart-info-label">Maxima</div><div class="chart-info-value" id="chartHigh">--</div></div>
+          <div class="chart-info-item"><div class="chart-info-label">Minima</div><div class="chart-info-value" id="chartLow">--</div></div>
+          <div class="chart-info-item"><div class="chart-info-label">Periodo</div><div class="chart-info-value" id="chartPeriodVar">--</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-dividends" class="tab-content">
+    <div class="card">
+      <h2>Dividendos <span class="subtitle">Proventos dos seus ativos</span></h2>
+      <div class="action-row">
+        <button class="btn btn-primary btn-sm" onclick="loadDividends()">Atualizar</button>
+        <select id="dividendTypeFilter" onchange="filterDividends()">
+          <option value="all">Todos</option>
+        </select>
+        <span id="dividendsRefresh" class="refresh-info"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ativo</th>
+              <th>Valor (R$)</th>
+              <th>Data Com</th>
+              <th>Data Pagamento</th>
+              <th>Tipo</th>
+              <th>DY (%)</th>
+            </tr>
+          </thead>
+          <tbody id="dividendsBody">
+            <tr><td colspan="6" style="text-align:center;color:#999;padding:40px;">Carregando dividendos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-recommendations" class="tab-content">
+    <div class="card">
+      <h2>Recomendacoes <span class="subtitle">Sugestoes inteligentes por perfil</span></h2>
+      <div class="profile-grid">
+        <div class="profile-card active" data-profile="iniciante" onclick="selectProfile('iniciante',this)">
+          <div class="emoji">🌱</div>
+          <div class="name">Iniciante</div>
+          <div class="desc">Menor risco, foco em dividendos</div>
+        </div>
+        <div class="profile-card" data-profile="moderado" onclick="selectProfile('moderado',this)">
+          <div class="emoji">⚖️</div>
+          <div class="name">Moderado</div>
+          <div class="desc">Equilibrio entre risco e retorno</div>
+        </div>
+        <div class="profile-card" data-profile="agressivo" onclick="selectProfile('agressivo',this)">
+          <div class="emoji">🚀</div>
+          <div class="name">Agressivo</div>
+          <div class="desc">Maior potencial de crescimento</div>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary btn-sm" onclick="loadRecommendations()">Buscar Recomendacoes</button>
+        <button class="btn btn-refresh btn-sm" onclick="loadRecommendations()">Atualizar</button>
+        <span id="recRefresh" class="refresh-info"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Acão</th>
+              <th>Cotacão (R$)</th>
+              <th>Variacão %</th>
+              <th>DY (%)</th>
+              <th>Tipo</th>
+              <th>Noticias</th>
+              <th>Recomendacão</th>
+            </tr>
+          </thead>
+          <tbody id="recBody">
+            <tr><td colspan="7" style="text-align:center;color:#999;padding:40px;">Selecione um perfil e clique em "Buscar Recomendacoes"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SERVER_PORT = 8000;
+const BASE = window.location.protocol === 'file:' ? 'http://localhost:' + SERVER_PORT : '';
+
+if (window.location.protocol === 'file:') {
+  document.body.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#1a1a2e;color:#eee;">' +
+    '<div style="text-align:center;max-width:500px;padding:40px;">' +
+    '<h1 style="color:#e74c3c;">Erro de acesso</h1>' +
+    '<p style="font-size:1.1rem;line-height:1.6;">' +
+    'Esta pagina deve ser aberta atraves do servidor web.<br><br>' +
+    'Abra o navegador em:<br>' +
+    '<a href="http://localhost:' + SERVER_PORT + '/" style="color:#3498db;font-size:1.2rem;">' +
+    'http://localhost:' + SERVER_PORT + '/</a>' +
+    '</p>' +
+    '<p style="color:#999;font-size:0.9rem;margin-top:20px;">' +
+    'Certifique-se de que o servidor esta rodando: python3 main.py' +
+    '</p>' +
+    '</div></div>';
+  throw new Error('Pagina aberta via file:// - redirecione para http://localhost:' + SERVER_PORT + '/');
+}
+
+let chartInstance = null;
+let chartAllData = [];
+let chartCurrentPeriod = 30;
+let currentProfile = 'iniciante';
+let portfolioTickers = [];
+let allDividendsData = [];
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'charts') setTimeout(() => { if (chartInstance) chartInstance.resize(); }, 100);
+    if (btn.dataset.tab === 'portfolio') loadPortfolio();
+    if (btn.dataset.tab === 'dividends') loadDividends();
+  });
+});
+
+async function apiCall(url) {
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (err) {
+    throw new Error('Erro de conexao: servidor nao encontrado em http://localhost:' + SERVER_PORT + '/. Verifique se o servidor esta rodando.');
+  }
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+  return resp.json();
+}
+
+function fmtMoney(v) { return 'R$ ' + v.toFixed(2); }
+function fmtQty(v) { return v % 1 === 0 ? v.toFixed(0) : v.toFixed(2); }
+
+async function reloadODS() {
+  const btn = document.querySelector('.action-row .btn-primary');
+  const origText = btn.textContent;
+  btn.textContent = 'Atualizando...';
+  btn.style.opacity = '0.6';
+  try {
+    const resp = await fetch(BASE + '/api/v1/portfolio/reload-ods', { method: 'POST' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || 'Erro ao atualizar carteira');
+    }
+    await loadPortfolio();
+  } catch (err) {
+    alert('Erro: ' + err.message);
+  }
+  btn.textContent = origText;
+  btn.style.opacity = '1';
+}
+
+async function loadPortfolio() {
+  const tbody = document.getElementById('portfolioBody');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#999;"><div class="loading"><div class="spinner"></div>Carregando carteira...</div></td></tr>';
+  try {
+    const data = await apiCall(BASE + '/api/v1/portfolio');
+    const now = new Date().toLocaleString('pt-BR');
+    document.getElementById('portfolioRefresh').textContent = 'Ultima atualizacao: ' + now;
+
+    const summary = document.getElementById('portfolioSummary');
+    const totalResultClass = data.total_result >= 0 ? 'pos' : 'neg';
+    summary.innerHTML = `
+      <div class="summary-item"><div class="summary-label">Total Investido</div><div class="summary-value">${fmtMoney(data.total_invested)}</div></div>
+      <div class="summary-item"><div class="summary-label">Valor Atual</div><div class="summary-value">${fmtMoney(data.total_current)}</div></div>
+      <div class="summary-item"><div class="summary-label">Resultado</div><div class="summary-value ${totalResultClass}">${fmtMoney(data.total_result)}</div></div>
+      <div class="summary-item"><div class="summary-label">Rentabilidade</div><div class="summary-value ${totalResultClass}">${data.total_result_percent >= 0 ? '+' : ''}${data.total_result_percent.toFixed(2)}%</div></div>
+    `;
+
+    portfolioTickers = data.items.map(i => i.ticker);
+
+    if (!data.items.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#999;">Nenhum ativo na carteira.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.items.map(i => {
+      const varClass = i.variation >= 0 ? 'pos' : 'neg';
+      const varSign = i.variation >= 0 ? '+' : '';
+      const resClass = i.result >= 0 ? 'pos' : 'neg';
+      const resSign = i.result >= 0 ? '+' : '';
+      return `<tr>
+        <td class="ticker-cell">${i.ticker}<div class="ticker-name">${i.name}</div></td>
+        <td>${fmtQty(i.quantity)}</td>
+        <td>${fmtMoney(i.avg_price)}</td>
+        <td>${fmtMoney(i.total_invested)}</td>
+        <td class="${varClass}">${fmtMoney(i.current_price)}</td>
+        <td class="${varClass}">${varSign}${i.variation.toFixed(2)}%</td>
+        <td>${fmtMoney(i.current_value)}</td>
+        <td class="${resClass}">${resSign}${fmtMoney(i.result)}</td>
+        <td class="${resClass}">${resSign}${i.result_percent.toFixed(2)}%</td>
+      </tr>`;
+    }).join('');
+
+    populateChartSelect();
+    if (portfolioTickers.length) loadDividends();
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#e74c3c;">Erro: ' + err.message + '</td></tr>';
+  }
+}
+
+function populateChartSelect() {
+  const sel = document.getElementById('chartTickerSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Selecione um ativo...</option>';
+  portfolioTickers.forEach(t => {
+    sel.innerHTML += `<option value="${t}" ${t === current ? 'selected' : ''}>${t}</option>`;
+  });
+}
+
+async function loadChartData() {
+  const ticker = document.getElementById('chartTickerSelect').value;
+  if (!ticker) return;
+  document.getElementById('chartStatus').innerHTML = '<span class="badge badge-ok">Carregando...</span>';
+  try {
+    const data = await apiCall(BASE + '/api/v1/portfolio/chart/' + ticker + '?days=365');
+    document.getElementById('chartStatus').innerHTML = '<span class="badge badge-ok">OK</span>';
+    if (!data || !data.length) {
+      document.getElementById('chartStatus').innerHTML = '<span class="badge badge-err">Sem dados</span>';
+      return;
+    }
+    chartAllData = data;
+    document.getElementById('chartTitle').textContent = 'COTACAO - ' + ticker;
+    renderChart(ticker);
+  } catch (err) {
+    document.getElementById('chartStatus').innerHTML = '<span class="badge badge-err">' + err.message + '</span>';
+  }
+}
+
+function renderChart(ticker) {
+  const dom = document.getElementById('stock-chart');
+  if (!chartInstance) chartInstance = echarts.init(dom);
+  const period = chartCurrentPeriod;
+  const data = chartAllData.slice(-period);
+  const dates = data.map(d => d.date);
+  const closes = data.map(d => d.close);
+  const last = data[data.length - 1] || {};
+  const first = data[0] || {};
+  const variation = first.close ? ((last.close - first.close) / first.close * 100) : 0;
+  const varClass = variation >= 0 ? 'pos' : 'neg';
+  const varSign = variation >= 0 ? '+' : '';
+  document.getElementById('chartPrice').textContent = fmtMoney(last.close || 0);
+  document.getElementById('chartPrice').className = 'chart-info-value ' + varClass;
+  document.getElementById('chartOpen').textContent = fmtMoney(last.open || 0);
+  document.getElementById('chartHigh').textContent = fmtMoney(last.high || 0);
+  document.getElementById('chartLow').textContent = fmtMoney(last.low || 0);
+  document.getElementById('chartPeriodVar').textContent = varSign + variation.toFixed(2) + '%';
+  document.getElementById('chartPeriodVar').className = 'chart-info-value ' + varClass;
+
+  const isUp = variation >= 0;
+  chartInstance.setOption({
+    tooltip: { trigger: 'axis', formatter: p => '<strong>' + p[0].name + '</strong><br/>R$ ' + (p[0].value || 0).toFixed(2) },
+    grid: { left: '3%', right: '4%', bottom: '10%', top: '8%', containLabel: true },
+    xAxis: { type: 'category', data: dates, axisLabel: { rotate: 45, fontSize: 10 } },
+    yAxis: { type: 'value', axisLabel: { formatter: 'R$ {value}' }, splitLine: { lineStyle: { color: '#eee' } } },
+    series: [{
+      type: 'line', data: closes, smooth: true, symbol: 'none',
+      lineStyle: { color: isUp ? '#27ae60' : '#e74c3c', width: 2 },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [
+        { offset: 0, color: isUp ? 'rgba(39,174,96,0.3)' : 'rgba(231,76,60,0.3)' },
+        { offset: 1, color: 'rgba(255,255,255,0)' }
+      ])},
+      markLine: {
+        silent: true,
+        lineStyle: { color: '#3498db', width: 1.5, type: 'dashed' },
+        label: {
+          formatter: 'Média: R$ {c}',
+          position: 'insideEndTop',
+          color: '#3498db',
+          fontSize: 11
+        },
+        data: [{ type: 'average', name: 'Média' }]
+      }
+    }]
+  });
+  window.addEventListener('resize', () => chartInstance?.resize());
+}
+
+function changeChartPeriod(days, btn) {
+  document.querySelectorAll('.chart-period-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  chartCurrentPeriod = days;
+  if (chartAllData.length) renderChart();
+}
+
+async function loadDividends() {
+  const tbody = document.getElementById('dividendsBody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;"><div class="loading"><div class="spinner"></div>Carregando dividendos...</div></td></tr>';
+  try {
+    const data = await apiCall(BASE + '/api/v1/portfolio/dividends');
+    document.getElementById('dividendsRefresh').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
+    if (!data.dividends || !data.dividends.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#999;">Nenhum dividendo encontrado.</td></tr>';
+      return;
+    }
+    allDividendsData = data.dividends;
+    const types = [...new Set(data.dividends.map(d => d.type))];
+    const sel = document.getElementById('dividendTypeFilter');
+    sel.innerHTML = '<option value="all">Todos</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+    sel.value = 'all';
+    filterDividends();
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#e74c3c;">Erro: ' + err.message + '</td></tr>';
+  }
+}
+
+function filterDividends() {
+  const tbody = document.getElementById('dividendsBody');
+  const selected = document.getElementById('dividendTypeFilter').value;
+  const filtered = selected === 'all' ? allDividendsData : allDividendsData.filter(d => d.type === selected);
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#999;">Nenhum dividendo encontrado para este tipo.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(d => {
+    const divClass = d.type === 'JCP' ? 'badge-jcp' : 'badge-div';
+    return `<tr>
+      <td class="ticker-cell">${d.ticker}</td>
+      <td>${fmtMoney(d.value)}</td>
+      <td>${d.date_com || '--'}</td>
+      <td>${d.date_pay || '--'}</td>
+      <td><span class="badge ${divClass}">${d.type}</span></td>
+      <td>${d.dy.toFixed(2)}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function selectProfile(profile, el) {
+  document.querySelectorAll('.profile-card').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  currentProfile = profile;
+  loadRecommendations();
+}
+
+async function loadRecommendations() {
+  const tbody = document.getElementById('recBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#999;"><div class="loading"><div class="spinner"></div>Analisando acoes para perfil ' + currentProfile + '...</div></td></tr>';
+  document.getElementById('recRefresh').textContent = 'Processando...';
+  try {
+    const stocks = await apiCall(BASE + '/api/v1/stocks/' + currentProfile);
+    document.getElementById('recRefresh').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
+    if (!stocks.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#999;">Nenhuma acao encontrada para este perfil.</td></tr>';
+      return;
+    }
+
+    const newsPromises = stocks.map(s =>
+      apiCall(BASE + '/api/v1/news/' + s.ticker).catch(() => null)
+    );
+    const newsResults = await Promise.all(newsPromises);
+    newsResults.forEach((nr, idx) => {
+      if (nr && idx < stocks.length) {
+        stocks[idx].news_analysis = nr.analysis;
+        stocks[idx].news_score = nr.score;
+      }
+    });
+
+    const sorted = [...stocks].filter(s => s.news_analysis === 'boa').sort((a, b) => (b.news_score || 0) - (a.news_score || 0));
+    const top5 = sorted.slice(0, 5);
+
+    if (!top5.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#999;">Nenhuma acao com noticias positivas encontrada. Tentando novamente...</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = top5.map(s => {
+      const varClass = s.variation >= 0 ? 'pos' : 'neg';
+      const varSign = s.variation >= 0 ? '+' : '';
+      const divBadge = s.dividend_type === 'JCP' ? 'badge-jcp' : 'badge-div';
+      const newsBadge = s.news_analysis
+        ? '<span class="badge badge-' + s.news_analysis + '">' + (s.news_analysis === 'boa' ? 'Boa' : 'Ruim') + '</span>'
+        : '<span style="color:#999;font-size:.75rem;">N/A</span>';
+      return `<tr>
+        <td class="ticker-cell">${s.ticker}<div class="ticker-name">${s.name}</div></td>
+        <td>${fmtMoney(s.price)}</td>
+        <td class="${varClass}">${varSign}${s.variation.toFixed(2)}%</td>
+        <td>${s.dividend_yield.toFixed(2)}%</td>
+        <td><span class="badge ${divBadge}">${s.dividend_type}</span></td>
+        <td>${newsBadge}</td>
+        <td><span class="badge badge-boa">Recomendado</span></td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#e74c3c;">Erro: ' + err.message + '</td></tr>';
+  }
+}
+
+function showAddModal() { document.getElementById('addModal').classList.add('show'); }
+function hideAddModal() { document.getElementById('addModal').classList.remove('show'); }
+
+async function submitAddStock() {
+  const ticker = document.getElementById('addTicker').value.trim().toUpperCase();
+  const qty = parseFloat(document.getElementById('addQty').value);
+  const price = parseFloat(document.getElementById('addPrice').value);
+  if (!ticker || !qty || !price || qty <= 0 || price <= 0) { alert('Preencha todos os campos corretamente.'); return; }
+  try {
+    const resp = await fetch(`${BASE}/api/v1/portfolio/add?ticker=${encodeURIComponent(ticker)}&quantity=${qty}&avg_price=${price}`, { method: 'POST' });
+    if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || 'Erro ao adicionar');
+    document.getElementById('addTicker').value = ''; document.getElementById('addQty').value = ''; document.getElementById('addPrice').value = '';
+    hideAddModal();
+    await loadPortfolio();
+  } catch (err) { alert('Erro: ' + err.message); }
+}
+
+function showSellModal() {
+  const list = document.getElementById('sellTickerList');
+  list.innerHTML = portfolioTickers.map(t => `<option value="${t}">`).join('');
+  document.getElementById('sellTicker').value = '';
+  document.getElementById('sellQty').value = '';
+  document.getElementById('sellModal').classList.add('show');
+}
+
+function hideSellModal() { document.getElementById('sellModal').classList.remove('show'); }
+
+async function submitSellStock() {
+  const ticker = document.getElementById('sellTicker').value.trim().toUpperCase();
+  const qty = parseFloat(document.getElementById('sellQty').value);
+  if (!ticker || !qty || qty <= 0) { alert('Preencha todos os campos corretamente.'); return; }
+  try {
+    const resp = await fetch(`${BASE}/api/v1/portfolio/sell?ticker=${encodeURIComponent(ticker)}&quantity=${qty}`, { method: 'POST' });
+    if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || 'Erro ao alterar');
+    document.getElementById('sellTicker').value = ''; document.getElementById('sellQty').value = '';
+    hideSellModal();
+    await loadPortfolio();
+  } catch (err) { alert('Erro: ' + err.message); }
+}
+
+document.getElementById('addModal').addEventListener('click', function(e) { if (e.target === this) hideAddModal(); });
+document.getElementById('sellModal').addEventListener('click', function(e) { if (e.target === this) hideSellModal(); });
+
+loadPortfolio();
+</script>
+</body>
+</html>
