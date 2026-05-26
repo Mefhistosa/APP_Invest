@@ -56,14 +56,12 @@ def sell_stock(ticker: str, quantity_to_sell: float,
             found = True
             break
     if not found:
-        remaining = original_quantity - quantity_to_sell
-        if remaining > 0:
-            stocks.append({
-                "ticker": ticker,
-                "name": ticker,
-                "quantity": remaining,
-                "avg_price": original_avg_price,
-            })
+        stocks.append({
+            "ticker": ticker,
+            "name": ticker,
+            "quantity": -quantity_to_sell,
+            "avg_price": original_avg_price,
+        })
     _save(stocks)
     return {"ticker": ticker, "quantity_sold": quantity_to_sell}
 

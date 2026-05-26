@@ -24,7 +24,6 @@ TICKER_ALIASES = {
 
 REALISTIC_PRICES = {
     "ITUB4": 41.78, "BBAS3": 22.07, "BBSE3": 34.83, "TAEE11": 42.22,
-    "TAEE4": 13.35,
     "CPFE3": 49.74, "PSSA3": 49.61, "CXSE3": 17.60, "ENGI11": 54.05,
     "EQTL3": 43.68, "SBSP3": 32.87, "BBDC4": 19.27, "ITSA4": 13.60,
     "SANB11": 29.33, "BPAC11": 59.02, "PETR4": 47.27, "PRIO3": 66.54,
@@ -165,30 +164,40 @@ async def get_history(ticker: str, days: int = 30) -> List[PriceHistoryItem]:
     return result
 
 
+def _merge_portfolio(ods_portfolio: list, custom_stocks: list) -> list:
+    by_ticker: dict = {}
+    for p in ods_portfolio:
+        by_ticker[p["ticker"]] = dict(p)
+    for c in custom_stocks:
+        t = c["ticker"]
+        q = c["quantity"]
+        ap = c["avg_price"]
+        if t in by_ticker:
+            existing = by_ticker[t]
+            old_qty = existing["quantity"]
+            old_price = existing["avg_price"]
+            new_qty = old_qty + q
+            if new_qty <= 0:
+                del by_ticker[t]
+                continue
+            if q > 0:
+                new_avg = (old_qty * old_price + q * ap) / new_qty
+            else:
+                new_avg = old_price
+            existing["quantity"] = new_qty
+            existing["avg_price"] = round(new_avg, 2)
+        else:
+            if q > 0:
+                by_ticker[t] = dict(c)
+    return list(by_ticker.values())
+
+
 @app.get("/api/v1/portfolio")
 async def get_portfolio() -> PortfolioResponse:
     portfolio = await get_portfolio_from_sheets()
     custom = get_custom_stocks()
 
-    ods_by_ticker: dict = {}
-    for p in portfolio:
-        ods_by_ticker[p["ticker"]] = p
-    for c in custom:
-        t = c["ticker"]
-        q = c["quantity"]
-        ap = c["avg_price"]
-        if t in ods_by_ticker:
-            existing = ods_by_ticker[t]
-            old_qty = existing["quantity"]
-            old_price = existing["avg_price"]
-            new_qty = old_qty + q
-            new_avg = (old_qty * old_price + q * ap) / new_qty
-            existing["quantity"] = new_qty
-            existing["avg_price"] = round(new_avg, 2)
-        else:
-            ods_by_ticker[t] = c
-
-    merged = list(ods_by_ticker.values())
+    merged = _merge_portfolio(portfolio, custom)
     items = []
     total_invested = 0.0
     total_current = 0.0
@@ -325,24 +334,8 @@ async def sell_portfolio_item(ticker: str = Query(...), quantity: float = Query(
 
     portfolio = await get_portfolio_from_sheets()
     custom = get_custom_stocks()
-    ods_by_ticker: dict = {}
-    for p in portfolio:
-        ods_by_ticker[p["ticker"]] = p
-    for c in custom:
-        t = c["ticker"]
-        q = c["quantity"]
-        ap = c["avg_price"]
-        if t in ods_by_ticker:
-            existing = ods_by_ticker[t]
-            old_qty = existing["quantity"]
-            old_price = existing["avg_price"]
-            new_qty = old_qty + q
-            new_avg = (old_qty * old_price + q * ap) / new_qty
-            existing["quantity"] = new_qty
-            existing["avg_price"] = round(new_avg, 2)
-        else:
-            ods_by_ticker[t] = c
-    merged_lookup = ods_by_ticker
+    merged_list = _merge_portfolio(portfolio, custom)
+    merged_lookup = {p["ticker"]: p for p in merged_list}
 
     ticker_upper = ticker.upper()
     if ticker_upper not in merged_lookup:
@@ -388,7 +381,7 @@ async def get_portfolio_chart(ticker: str, days: int = Query(default=30, ge=1, l
     import random
     from datetime import datetime, timedelta
     result = []
-    base_price = REALISTIC_PRICES.get(ticker.upper()) or REALISTIC_PRICES.get(resolved_ticker, 30.0)
+    base_price = REALISTIC_PRICES.get(resolved_ticker) or REALISTIC_PRICES.get(ticker.upper(), 30.0)
     for i in range(days):
         d = (datetime.now() - timedelta(days=days - i - 1)).strftime("%Y-%m-%d")
         var = random.uniform(-0.03, 0.03)
