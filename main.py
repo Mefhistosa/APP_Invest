@@ -16,14 +16,14 @@ from services.hgbrasil import get_macro_data
 from services.brapi import get_stock_history, get_stock_quote
 from services.dados_mercado import get_cvm_code, get_dividends as get_dm_dividends
 from services.google_sheets import get_portfolio_from_sheets, get_portfolio_dividends
-from services.custom_portfolio import add_stock as add_custom_stock, get_all as get_custom_stocks, sell_stock as sell_custom_stock
+from services.custom_portfolio import add_stock as add_custom_stock, get_all as get_custom_stocks, set_stock as set_custom_stock
 
 TICKER_ALIASES = {
     "TAEE4": "TAEE11",
 }
 
 REALISTIC_PRICES = {
-    "ITUB4": 41.78, "BBAS3": 22.07, "BBSE3": 34.83, "TAEE11": 42.22,
+    "ITUB4": 41.78, "BBAS3": 22.07, "BBSE3": 34.83,     "TAEE11": 42.22, "TAEE4": 42.22,
     "CPFE3": 49.74, "PSSA3": 49.61, "CXSE3": 17.60, "ENGI11": 54.05,
     "EQTL3": 43.68, "SBSP3": 32.87, "BBDC4": 19.27, "ITSA4": 13.60,
     "SANB11": 29.33, "BPAC11": 59.02, "PETR4": 47.27, "PRIO3": 66.54,
@@ -165,30 +165,17 @@ async def get_history(ticker: str, days: int = 30) -> List[PriceHistoryItem]:
 
 
 def _merge_portfolio(ods_portfolio: list, custom_stocks: list) -> list:
+    all_custom = {c["ticker"]: dict(c) for c in custom_stocks}
+    positive_custom = {t: c for t, c in all_custom.items() if c["quantity"] > 0}
+    excluded = {t for t, c in all_custom.items() if c["quantity"] <= 0}
+
     by_ticker: dict = {}
     for p in ods_portfolio:
-        by_ticker[p["ticker"]] = dict(p)
-    for c in custom_stocks:
-        t = c["ticker"]
-        q = c["quantity"]
-        ap = c["avg_price"]
-        if t in by_ticker:
-            existing = by_ticker[t]
-            old_qty = existing["quantity"]
-            old_price = existing["avg_price"]
-            new_qty = old_qty + q
-            if new_qty <= 0:
-                del by_ticker[t]
-                continue
-            if q > 0:
-                new_avg = (old_qty * old_price + q * ap) / new_qty
-            else:
-                new_avg = old_price
-            existing["quantity"] = new_qty
-            existing["avg_price"] = round(new_avg, 2)
-        else:
-            if q > 0:
-                by_ticker[t] = dict(c)
+        t = p["ticker"]
+        if t in excluded or t in positive_custom:
+            continue
+        by_ticker[t] = dict(p)
+    by_ticker.update(positive_custom)
     return list(by_ticker.values())
 
 
@@ -322,8 +309,29 @@ async def reload_portfolio_ods():
 
 @app.post("/api/v1/portfolio/add")
 async def add_portfolio_item(ticker: str = Query(...), quantity: float = Query(...), avg_price: float = Query(...)):
-    add_custom_stock(ticker, abs(quantity), abs(avg_price))
-    return {"status": "ok", "ticker": ticker.upper(), "quantity": abs(quantity), "avg_price": abs(avg_price)}
+    ticker_upper = ticker.upper()
+    qty = abs(quantity)
+    price = abs(avg_price)
+
+    ods_portfolio = await get_portfolio_from_sheets()
+    custom = get_custom_stocks()
+
+    ods_entry = next((p for p in ods_portfolio if p["ticker"] == ticker_upper), None)
+    custom_entry = next((c for c in custom if c["ticker"] == ticker_upper), None)
+
+    ods_qty = ods_entry["quantity"] if ods_entry else 0
+    ods_avg = ods_entry["avg_price"] if ods_entry else 0
+    custom_qty = custom_entry["quantity"] if custom_entry else 0
+    custom_avg = custom_entry["avg_price"] if custom_entry else 0
+
+    existing_total_qty = ods_qty + custom_qty
+    existing_total_cost = ods_qty * ods_avg + custom_qty * custom_avg
+
+    new_qty = existing_total_qty + qty
+    new_avg = (existing_total_cost + qty * price) / new_qty if new_qty > 0 else price
+
+    set_custom_stock(ticker_upper, new_qty, new_avg)
+    return {"status": "ok", "ticker": ticker_upper, "quantity": round(new_qty, 4), "avg_price": round(new_avg, 2)}
 
 
 @app.post("/api/v1/portfolio/sell")
@@ -348,8 +356,12 @@ async def sell_portfolio_item(ticker: str = Query(...), quantity: float = Query(
     if abs_qty > orig_qty:
         raise HTTPException(status_code=400, detail=f"Quantidade para vender ({abs_qty}) excede a quantidade disponivel ({orig_qty})")
 
-    sell_custom_stock(ticker_upper, abs_qty,
-                      original_quantity=orig_qty, original_avg_price=orig_avg)
+    new_qty = orig_qty - abs_qty
+    new_avg = orig_avg
+    if new_qty > 0:
+        set_custom_stock(ticker_upper, new_qty, new_avg)
+    else:
+        set_custom_stock(ticker_upper, 0, orig_avg)
     return {"status": "ok", "ticker": ticker_upper, "quantity_sold": abs_qty}
 
 

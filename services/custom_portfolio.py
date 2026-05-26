@@ -66,5 +66,25 @@ def sell_stock(ticker: str, quantity_to_sell: float,
     return {"ticker": ticker, "quantity_sold": quantity_to_sell}
 
 
+def set_stock(ticker: str, quantity: float, avg_price: float) -> List[Dict]:
+    """Replace or create a custom stock entry with absolute position values."""
+    stocks = _load()
+    ticker = ticker.upper()
+    for s in stocks:
+        if s["ticker"] == ticker:
+            s["quantity"] = quantity
+            s["avg_price"] = round(avg_price, 2)
+            _save(stocks)
+            return stocks
+    stocks.append({
+        "ticker": ticker,
+        "name": ticker,
+        "quantity": quantity,
+        "avg_price": round(avg_price, 2),
+    })
+    _save(stocks)
+    return stocks
+
+
 def get_all() -> List[Dict]:
     return _load()
