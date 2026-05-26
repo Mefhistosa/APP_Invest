@@ -1,86 +1,104 @@
-# Tech Context
+# Tech Context — App Investidor
 
-## Stack Principal
-| Tecnologia | Versão | Propósito |
-|-----------|--------|-----------|
-| Python | 3.12 | Runtime |
-| FastAPI | >=0.115.0 | Framework REST |
-| Uvicorn | >=0.32.0 | Servidor ASGI |
-| Pydantic | >=2.9.2 | Validação de schemas |
-| ECharts | 5.4.3 | Gráficos frontend |
+## Stack Tecnológico
 
-## Dependências Python
-| Pacote | Versão | Uso |
-|--------|--------|-----|
-| httpx | >=0.27.2 | HTTP async client |
-| aiohttp | >=3.10.5 | HTTP async alternativo |
-| openai | >=1.54.0 | DeepSeek API (SDK compatível) |
-| python-dotenv | >=1.0.1 | Carregar .env |
-| gspread | >=6.2.0 | Google Sheets API |
-| odfpy | >=1.4.1 | Leitura de arquivos .ods |
-| pytz | >=2024.2 | Fuso horário |
+| Camada | Tecnologia | Versão |
+|--------|-----------|--------|
+| Runtime | Python | 3.12.3 |
+| Framework Web | FastAPI | >=0.115.0 |
+| Servidor ASGI | Uvicorn | >=0.32.0 |
+| Validação | Pydantic | >=2.9.2 |
+| Frontend | Vanilla JS + HTML5 + CSS3 | — |
+| Gráficos | ECharts | 5.4.3 (CDN) |
+| Templates | Jinja2 (não usado ativamente) | — |
+
+## Dependências (requirements.txt)
+
+| Pacote | Versão | Finalidade |
+|--------|--------|------------|
+| fastapi | >=0.115.0 | Framework REST |
 | python-multipart | >=0.0.18 | Upload de arquivos |
+| uvicorn[standard] | >=0.32.0 | Servidor ASGI |
+| pydantic | >=2.9.2 | Schemas/validação |
+| python-dotenv | >=1.0.1 | Variáveis de ambiente |
+| httpx | >=0.27.2 | HTTP async (APIs externas) |
+| aiohttp | >=3.10.5 | HTTP async (não usado ativamente) |
+| openai | >=1.54.0 | Cliente DeepSeek (API compatível) |
+| pytz | >=2024.2 | Fuso horário |
+| gspread | >=6.2.0 | Google Sheets API |
+| pandas | >=2.0.0 | Leitura ODS |
+| odfpy | >=1.4.1 | Engine ODF para pandas |
+| yfinance | >=1.3.0 | Yahoo Finance (não usado ativamente) |
 
 ## APIs Externas
-| API | Função | Token (env) |
-|-----|--------|-------------|
-| Brapi.dev | Cotações em tempo real, histórico | `BRAPI_TOKEN` |
-| Dados de Mercado | Dados fundamentalistas, proventos | `DADOS_MERCADO_TOKEN` |
-| Partnr.ai | Notícias financeiras, screener | `PARTNR_TOKEN` |
-| HG Brasil | Dados macroeconômicos | `HG_BRASIL_KEY` |
-| DeepSeek | Análise de sentimento de notícias | `DEEP_SEEK_KEY` |
 
-Todas as chaves são opcionais — sistema degrada graciosamente.
+| API | Endpoints Usados | Auth | Fallback |
+|-----|-----------------|------|----------|
+| Brapi.dev | /api/quote/{ticker}, /api/quote/history | Token (query param) | REALISTIC_PRICES |
+| Dados de Mercado | /api/v1/ratios, /api/v1/dividends, /api/v1/dy, /api/v1/quotes | Token (header) | REALISTIC_DATA |
+| HG Brasil | /financial/stock_price, /financial/macro | Key (query param) | Dados mock |
+| Partnr.ai | /v1/screener, /v1/news, /v1/stock_data, /v1/quotes | Token (header) | Mock news |
+| DeepSeek | /v1/chat/completions (API compatível OpenAI) | Key (header) | Keyword sentiment |
 
-## Configuração de Ambiente
-```bash
-cp .env.example .env
-# Configurar tokens conforme necessário
-uvicorn main:app --reload --port 8000
+## Configuração (.env)
+
+```
+BRAPI_TOKEN=<token>
+DADOS_MERCADO_TOKEN=<token>
+HG_BRASIL_KEY=<key>
+PARTNR_TOKEN=<token>
+DEEP_SEEK_KEY=<key>
+SHEET1_ID=1jyEveMHVnwqZzAFBLTMiynmot-tafYnhavijpVBoadU
+SHEET2_ID=1e0upnG4TNa-NRMZS3tAWvaZk3_P7V4EYA1NAPuim-aE
 ```
 
 ## Estrutura de Diretórios
+
 ```
 app_investidor/
-  main.py                Servidor FastAPI (porta 8000), rotas REST
-  index.html             SPA frontend com ECharts
-  requirements.txt       Dependências Python
-  .env                   Configuração (tokens de API)
-  custom_stocks.json     Stocks adicionados manualmente
-  lista_acao.ods         Planilha ODS da carteira
-  start.sh               Script de inicialização
-  models/
-    schemas.py           Modelos Pydantic
-  skills/
-    stock_skill.py       Recomendação por perfil
-    news_skill.py        Análise de sentimento
-  services/
-    brapi.py             Brapi.dev
-    dados_mercado.py     Dados de Mercado
-    google_sheets.py     Google Sheets
-    hgbrasil.py          HG Brasil
-    news_sentiment.py    DeepSeek + keywords
-    partnr.py            Partnr.ai
-    ods_reader.py        Leitor ODS
-    custom_portfolio.py  Stocks manuais
-  docs/                  Documentação
-  memory-bank/           Memory Bank (este diretório)
+├── main.py                    # Servidor FastAPI + endpoints
+├── index.html                 # Frontend SPA
+├── requirements.txt           # Dependências Python
+├── start.sh                   # Script de inicialização
+├── custom_stocks.json         # Carteira local (JSON)
+├── lista_acao.ods             # Carteira local (planilha)
+├── models/
+│   └── schemas.py             # Pydantic models
+├── skills/
+│   ├── stock_skill.py         # Recomendação por perfil
+│   └── news_skill.py          # Pipeline de notícias
+├── services/
+│   ├── brapi.py               # Integração Brapi.dev
+│   ├── dados_mercado.py       # Integração Dados de Mercado
+│   ├── hgbrasil.py            # Integração HG Brasil
+│   ├── partnr.py              # Integração Partnr.ai
+│   ├── news_sentiment.py      # Análise DeepSeek + keywords
+│   ├── google_sheets.py       # Leitura Google Sheets
+│   ├── ods_reader.py          # Leitura planilha ODS
+│   └── custom_portfolio.py    # Carteira JSON local
+├── docs/                      # Documentação atual
+├── doc/                       # Documentação deprecada
+├── memory-bank/               # Este Memory Bank
+├── venv/                      # Ambiente virtual Python
+└── .env                       # Variáveis de ambiente (gitignored)
 ```
 
 ## Endpoints da API
+
 | Método | Rota | Descrição |
 |--------|------|-----------|
+| GET | `/` | Frontend SPA |
+| GET | `/api/v1/health` | Health check |
 | GET | `/api/v1/stocks/{profile}` | Recomendações por perfil |
 | GET | `/api/v1/news/{ticker}` | Análise de sentimento |
 | GET | `/api/v1/dividends/{ticker}` | Calendário de dividendos |
-| GET | `/api/v1/macro` | SELIC e CDI |
-| GET | `/api/v1/history/{ticker}` | Histórico OHLCV |
-| GET | `/api/v1/portfolio` | Carteira consolidada |
+| GET | `/api/v1/macro` | Dados macroeconômicos |
+| GET | `/api/v1/filters` | Critérios dos perfis |
+| GET | `/api/v1/history/{ticker}` | Histórico de preços |
+| GET | `/api/v1/portfolio` | Carteira do usuário |
 | GET | `/api/v1/portfolio/dividends` | Dividendos da carteira |
 | GET | `/api/v1/portfolio/chart/{ticker}` | Dados para gráfico |
-| GET | `/api/v1/filters` | Critérios dos perfis |
 | POST | `/api/v1/portfolio/upload-ods` | Upload de ODS |
-| POST | `/api/v1/portfolio/reload-ods` | Recarregar ODS |
-| POST | `/api/v1/portfolio/add` | Adicionar ativo manual |
-| POST | `/api/v1/portfolio/sell` | Vender ativo |
-| GET | `/api/v1/health` | Health check |
+| POST | `/api/v1/portfolio/reload-ods` | Recarregar ODS local |
+| POST | `/api/v1/portfolio/add` | Adicionar ação |
+| POST | `/api/v1/portfolio/sell` | Vender/reduzir ação |
